@@ -1,30 +1,91 @@
 # Lyrics Tray Icon Fix
 
-这是一个为个人用途编写的 Windows 小工具，用于隐藏 BetterLyrics 和 Lyricify Lite 在托盘中错误多出来的 `H.NotifyIcon_*` 图标。
+这是一个为个人用途编写的 Windows 托盘图标修复工具，用来隐藏 BetterLyrics、Lyricify Lite 以及 Windows 音频相关托盘中错误或不需要显示的特定图标。
 
-当前确认可用版本：`v0.20-target-self-delete-hnotify`。
+当前版本：`v0.22-target-explorer-audio-icons`。
 
 ## 用途
 
-本项目不是通用托盘管理器，也不是 PS Tray Factory 的替代品。它只用于补足 PS Tray Factory 对 BetterLyrics / Lyricify Lite 错误托盘图标隐藏不稳定的问题。
+本项目不是通用托盘管理器，也不是 PS Tray Factory 的替代品。它只是补足我当前环境里 PS Tray Factory 对部分托盘图标隐藏不稳定的问题。
+
+当前只匹配以下窄规则：
+
+```text
+LYRICIFY LITE.EXE + H.NotifyIcon_* + UID=0
+BETTERLYRICS.WINUI3.EXE + H.NotifyIcon_* + UID=0
+EXPLORER.EXE + ATL:* + UID=100
+```
+
+其中 `EXPLORER.EXE + ATL:* + UID=100` 用于处理已观察到的 Windows 音频托盘图标，例如“音频服务未运行。”和“音箱 (USB): 26%”。规则同时限定进程、窗口类前缀和 UID，避免影响 explorer.exe 的其他托盘图标。
 
 ## 使用
 
-从本仓库下载 `lyrics-tray-icon-fix-v0.20.zip`，解压后双击：
+普通使用请从 GitHub Releases 下载完整包，解压到固定目录后运行：
 
 ```text
-Install and start v0.20.cmd
+Install and start v0.22.cmd
+```
+
+查看状态：
+
+```text
+Status v0.22.cmd
 ```
 
 停止并移除开机启动：
 
 ```text
-Stop and disable v0.20.cmd
+Stop and disable v0.22.cmd
 ```
 
-## 实现
+开机启动项使用当前用户的：
 
-v0.20 使用 Windows 消息 Hook，不是持续轮询。它不主动刷新 PS Tray Factory 的托盘列表，避免冲掉 PS Tray Factory 中自定义的托盘图标图片。
+```text
+HKCU\Software\Microsoft\Windows\CurrentVersion\Run
+```
+
+启动链路：
+
+```text
+HKCU Run -> wscript.exe -> run-hidden.vbs -> bin\Lyrics Tray Icon Fix.exe start
+```
+
+## 实现方式
+
+v0.22 仍使用 Windows 消息 Hook：
+
+```text
+WH_CALLWNDPROC
+WH_GETMESSAGE
+```
+
+它不是持续轮询托盘，也不主动广播 PS Tray Factory 的刷新消息。后台进程主要等待事件，Hook DLL 只对命中的目标进程和目标窗口规则执行处理。
+
+## 构建
+
+源码构建需要 Zig C 编译器，放置在仓库上一级目录：
+
+```text
+tools\zig\zig.exe
+```
+
+然后运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
+```
+
+构建产物会输出到：
+
+```text
+bin\
+```
+
+## 安全说明
+
+本工具不读取游戏内存，不扫描进程内存，不注入游戏专用逻辑。它会安装全局 Windows 消息 Hook，因此 Hook DLL 会被加载到多个 GUI 进程中，这是该技术路线的正常表现。
+
+如果特别在意游戏反作弊风险，请在启动相关游戏前自行评估是否停用本工具。
 
 ## 许可
 
